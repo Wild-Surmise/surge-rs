@@ -119,6 +119,14 @@ impl EasySurge {
         self.synth.release_note(channel, key, velocity, 0);
     }
 
+    pub fn pitch_bend(&mut self, channel: i8, value: i32) {
+        self.synth.pitch_bend(channel, value);
+    }
+
+    pub fn reset_pitch_bend(&mut self, channel: i8) {
+        self.synth.reset_pitch_bend(channel);
+    }
+
     pub fn shut_all_notes(&mut self) {
         self.synth.all_notes_off();
     }

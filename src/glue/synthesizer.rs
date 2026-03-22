@@ -278,6 +278,9 @@ impl Drop for SurgeSynthesizer {
     }
 }
 
+// TODO: check if this is a mistake to do.
+unsafe impl Send for SurgeSynthesizer {}
+
 /*
  * legend:
  * N new surge-rs function.
