@@ -1,13 +1,8 @@
-#[allow(
-    nonstandard_style,
-    unsafe_op_in_unsafe_fn,
-    unused,
-    unnecessary_transmutes,
-)]
-pub mod hell_ffi;
+pub use surge_bridge as hell_ffi;   // transition artefact.
 pub mod hcode;
 pub mod synthesizer;
 pub mod parameter;
+// patch was here. *.-
 
 /*
  * this is my cat:

@@ -3,7 +3,9 @@ use std::ffi;
 
 unsafe extern "C" {
     pub fn create_engine(sr: f32) -> *mut SurgeSynthesizer;
+    pub fn create_patch() -> *mut SurgePatch;
     pub fn destroy_engine(surge: *mut SurgeSynthesizer);
+    pub fn destroy_patch(patch: *mut SurgePatch);
     pub fn destroy_parameter(p: *mut Parameter);
 
     pub fn getNumInputs(surge: *mut SurgeSynthesizer) -> i32;   // TODO: convert to const?

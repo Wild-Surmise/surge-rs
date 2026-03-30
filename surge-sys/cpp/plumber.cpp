@@ -1,34 +1,8 @@
-#include "bridge.h"
+#include "plumber.h"
 
 typedef SurgeSynthesizer::ID ID;
 
-class ErrCork : public SurgeSynthesizer::PluginLayer {
-	public:
-		void surgeParameterUpdated(const SurgeSynthesizer::ID &id, float d) override {}
-    		void surgeMacroUpdated(long macroNum, float d) override {}
-};
-
 extern "C" {
-EXP	SurgeSynthesizer* create_engine(float sr) {
-		auto* layer = new ErrCork();
-		auto* surge = new SurgeSynthesizer(layer, "");
-
-		surge->setSamplerate(sr);
-		surge->time_data.tempo = 120;
-		surge->time_data.ppqPos = 0;
-
-		return surge;
-	}
-
-EXP	void destroy_engine(SurgeSynthesizer* surge) {
-		if (surge) delete surge;	// this just works?
-	}
-
-	// TODO: check if below and above even need the if.
-EXP	void destroy_parameter(Parameter* p) {
-		if (p) delete p;
-	}
-
 	// header functions that don't get exported by bindgen.
 	// could be hard-coded but i'd rather have it be a bit more verbose in exchange for correctness.
 EXP	int getNumInputs(SurgeSynthesizer* surge)	{ return surge->getNumInputs(); }

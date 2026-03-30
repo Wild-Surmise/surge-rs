@@ -2,6 +2,7 @@ use super::hell_ffi;
 use super::parameter::Parameter;
 
 use std::ffi;
+use std::path::Path;
 
 // should this take &self and &mut index instead? for clarity up ahead.
 // update: yes. yes it should.
@@ -11,7 +12,7 @@ macro_rules! stringer {
         unsafe {
             hell_ffi::$function($self.ptr, &mut $index.0, buffer.as_mut_ptr());
             ffi::CStr::from_ptr(buffer.as_ptr())
-.to_string_lossy()
+                .to_string_lossy()
                 .into_owned()
         }
     }}
@@ -46,6 +47,19 @@ impl SurgeSynthesizer {
     pub fn pull_buffer(&self) -> [[f32; 32]; 2] {
         unsafe { (*self.ptr).output }
     }
+
+    pub fn load_patch_by_path(
+        &mut self,
+        fxp_path: &Path,
+        category_id: i32,
+        name: &str,
+        force_is_preset: bool
+    ) { unsafe {
+        let cpath = ffi::CString::new(fxp_path.as_os_str().to_str().unwrap()).unwrap();
+        let cname = ffi::CString::new(name).unwrap();
+
+        (*self.ptr).loadPatchByPath(cpath.as_ptr(), category_id, cname.as_ptr(), force_is_preset);
+    }}
 
     // TODO: look into the code and evaluate which functions can take &self.
     pub fn play_note(
@@ -267,6 +281,14 @@ impl SurgeSynthesizer {
     // TODO: rename macro_number to just number? or id?
     pub fn apply_macro_monophonic_modulation(&mut self, macro_number: i64, value: f32) {
         unsafe { (*self.ptr).applyMacroMonophonicModulation(macro_number, value); }
+    }
+
+    pub fn load_raw(&mut self, data: &mut [u8], preset: Option<bool>) {
+        let size = data.len() as i32;   // TODON'T: use try_from in case patches exceed 2 gigabytes.
+        let data = data.as_ptr() as *const std::ffi::c_void;
+        let preset = preset.unwrap_or(false);
+
+        unsafe { (*self.ptr).loadRaw(data, size, preset); }
     }
 }
 

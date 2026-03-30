@@ -5,6 +5,7 @@
  */
 
 // constants ripped straight from Surgestorage.h.
+#![allow(unused_variables)]
 pub const N_OSCS: i32           = 3;
 pub const N_LFOS_VOICE: i32     = 6;
 pub const N_LFOS_SCENE: i32     = 6;

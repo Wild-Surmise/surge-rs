@@ -1,12 +1,12 @@
 use midly::{MidiMessage, Smf, TrackEventKind};
 use ringbuf::{HeapCons, HeapProd, HeapRb, traits::{Consumer, Observer, Producer, Split}};
 use bus::{Bus, BusReader};
-use surge_rs::EasySurge;
+use surge_rs::synthesizer::EasySurge;
 
 use std::{thread::{self}, time::{self, Duration}};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-const MIDI: &[u8] = include_bytes!("waydrive.mid");
+const MIDI: &[u8] = include_bytes!("./data/waydrive.mid");
 
 struct Event {
     time: u32,
@@ -92,60 +92,25 @@ fn main() {
     let mut synth4 = EasySurge::new(48000.0);
 
     // s1 conf.
-    synth1.set_parameter("A Osc 1 Type",                0.55).unwrap();
-    synth1.set_parameter("A Osc 1 M1 Amount",           0.5).unwrap();
-    synth1.set_parameter("A Osc 1 M1 Ratio",            0.12).unwrap();
-    synth1.set_parameter("A Amp EG Attack",             0.1).unwrap();
-    synth1.set_parameter("A Amp EG Release",            0.45).unwrap();
-    synth1.set_parameter("A Portamento",                0.35).unwrap();
-    synth1.set_parameter("Global Volume",               0.6).unwrap();
+    synth1.load_patch(include_bytes!("./data/key1.fxp"));
+    synth1.set_parameter("A Amp EG Release", 0.6).unwrap();
+    synth1.set_parameter("Global Volume", 0.66).unwrap();
     // s2 conf.
+    synth2.load_patch(include_bytes!("./data/lead.fxp"));
     synth2.set_parameter("A Play Mode",                 0.8).unwrap();
-    synth2.set_parameter("A Osc 1 Type",                0.55).unwrap();
-    synth2.set_parameter("A Osc 1 M1 Amount",           0.5).unwrap();
-    synth2.set_parameter("A Osc 1 M1 Ratio",            0.2).unwrap();
-    synth2.set_parameter("A Osc 1 M2 Amount",           0.23).unwrap();
-    synth2.set_parameter("A Osc 1 M2 Ratio",            0.7).unwrap();
-    synth2.set_parameter("A Osc 1 Volume",              0.5).unwrap();
-    synth2.set_parameter("A Osc 1 Retrigger",           1.00).unwrap();
-    synth2.set_parameter("A Osc 2 Mute",                0.0).unwrap();
-    synth2.set_parameter("A Osc 2 Type",                0.8).unwrap();
-    synth2.set_parameter("A Osc 2 Exciter",             0.8).unwrap();
-    synth2.set_parameter("A Osc 2 Stiffness",           0.5).unwrap();
-    synth2.set_parameter("A Osc 2 Retrigger",           1.00).unwrap();
-    synth2.set_parameter("A Osc 3 Mute",                0.0).unwrap();
-    synth2.set_parameter("A Osc 3 Octave",              0.8).unwrap();
-    synth2.set_parameter("A Osc 3 Volume",              0.9).unwrap();
-    synth2.set_parameter("A Amp EG Attack",             0.05).unwrap();
     synth2.set_parameter("A Amp EG Release",            0.5).unwrap();
-    synth2.set_parameter("A Portamento",                0.3).unwrap();
+    synth2.set_parameter("A Portamento",                0.35).unwrap();
     synth2.set_parameter("A Pitch Bend Up Range",       0.3).unwrap();
     synth2.set_parameter("A Pitch Bend Down Range",     0.3).unwrap();
-    synth2.set_parameter("Global Volume",               0.8).unwrap();
+    synth2.set_parameter("A Octave", 0.7).unwrap();
+    synth2.set_parameter("A Amp EG Release", 0.4).unwrap();
+    synth2.set_parameter("Global Volume", 0.83).unwrap();
     // s3 conf.
-    synth3.set_parameter("A Osc 1 Type",                0.9).unwrap();
-    synth3.set_parameter("A Osc 2 Type",                0.6).unwrap();
-    synth3.set_parameter("A Osc 2 Octave",              0.5).unwrap();
-    synth3.set_parameter("A Osc 3 Mute",                0.0).unwrap();
-    synth3.set_parameter("A Osc 3 Octave",              0.4).unwrap();
-    synth3.set_parameter("A Filter 1 Type",             0.03).unwrap();
-    synth3.set_parameter("A Filter 1 Cutoff",           0.5).unwrap();
-    synth3.set_parameter("A Filter EG Decay",           0.55).unwrap();
-    synth3.set_parameter("A Filter EG Sustain",         0.0).unwrap();
-    synth3.set_parameter("A Filter 1 FEG Mod Amount",   0.8).unwrap();
-    synth3.set_parameter("A Amp EG Release",            0.4).unwrap();
-    synth3.set_parameter("A FM Routing",                0.2).unwrap();
-    synth3.set_parameter("A FM Depth",                  0.6).unwrap();
-    synth3.set_parameter("A Portamento",                0.45).unwrap();
-    synth3.set_parameter("Global Volume",               0.8).unwrap();
+    synth3.load_patch(include_bytes!("./data/bass.fxp"));
+    synth3.set_parameter("Global Volume", 0.8).unwrap();
     // s4 conf.
-    synth4.set_parameter("A Osc 1 Type",                0.55).unwrap();
-    synth4.set_parameter("A Osc 1 M1 Amount",           0.2).unwrap();
-    synth4.set_parameter("A Osc 1 M1 Ratio",            0.2).unwrap();
-    synth4.set_parameter("A Amp EG Attack",             0.0).unwrap();
-    synth4.set_parameter("A Amp EG Release",            0.6).unwrap();
-    synth4.set_parameter("A Portamento",                0.35).unwrap();
-    synth4.set_parameter("Global Volume",               0.7).unwrap();
+    synth3.load_patch(include_bytes!("./data/bass.fxp"));
+    synth4.set_parameter("Global Volume", 0.65).unwrap();
 
     let (mut controller1, mut datain1) = RiverFlow::new(synth1, 1, synthcc1);
     let (mut controller2, mut datain2) = RiverFlow::new(synth2, 2, synthcc2);
@@ -168,9 +133,10 @@ fn main() {
                         let sum = datalist.iter()
                             .map(|co| co[ch][i])
                             .sum::<f32>();
-                        sum / datalist.len() as f32
+                        sum * 2.0 / datalist.len() as f32
                     })
                 });
+                if push.clone().any(|x| x.abs() >= 1.0) { eprintln!("audio clipped!"); }
                 a_prd.push_iter(push);
             } else {
                 thread::sleep(Duration::from_millis(2));

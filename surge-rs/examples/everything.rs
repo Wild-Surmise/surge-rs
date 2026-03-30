@@ -1,5 +1,5 @@
 use ringbuf::{HeapRb, traits::{Consumer, Observer, Producer, Split}};
-use surge_rs::EasySurge;
+use surge_rs::synthesizer::EasySurge;
 
 use std::{thread, time::Duration};
 use textplots::{Chart, Plot, Shape};

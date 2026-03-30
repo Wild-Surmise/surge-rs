@@ -1,4 +1,5 @@
-pub mod glue;
+#![allow(unused_imports)]   // i want the staircase!
+use crate::glue;
 use glue::hcode;
 use glue::hell_ffi;
 use glue::parameter;
@@ -8,6 +9,7 @@ use glue::synthesizer;
 use synthesizer::{SurgeSynthesizer, SurgeId};
 
 use std::collections::HashMap;
+use std::path::Path;
 
 macro_rules! eslog {
     ($($arg:tt)*) => {
@@ -66,6 +68,18 @@ impl EasySurge {
 
         self.map = map;
         eslog!("table updated OK.");
+    }
+
+    pub fn load_patch(&mut self, data: &[u8]) {
+        const XML_OFFSET: usize = 0x5c;
+
+        let mut able = data[XML_OFFSET..].to_vec();
+        self.synth.load_raw(&mut able, Some(false));
+    }
+
+    // TODO: maybe remove this, or alternatively call load_patch.
+    pub fn load_patch_by_path(&mut self, fxp_path: &Path, name: &str) {
+        self.synth.load_patch_by_path(fxp_path, -1, name, false);
     }
 
     pub fn query_parameter(&self, name: &str) -> Result<(f32, String, String)> {
