@@ -219,13 +219,18 @@ fn main() {
         ("libs/oddsound-mts",                       "oddsound-mts"),
         ("libs/fmt",                                if var("OPT_LEVEL").unwrap() != "0" { "fmt" } else { "fmtd" }), // why.
         ("libs/pffft",                              "pffft"),
-        ("libs/eurorack",                           "eurorack"),
         ("libs/binn",                               "binn"),
         ("libs/airwindows",                         "airwindows"),
         ("libs/sst/sst-plugininfra",                "sst-plugininfra"),
         ("libs/sst/sst-plugininfra/libs/strnatcmp", "strnatcmp"),
         ("libs/sst/sst-plugininfra/libs/tinyxml",   "tinyxml"),
     );
+    // Spike patch: eurorack defines the `clouds::*` globals Surge references.
+    // On macOS a VST3 is an MH_BUNDLE linked with -undefined dynamic_lookup, so
+    // the linker never pulls these archive members and dlopen fails. whole-archive
+    // forces every eurorack object into the output (needed for any bundle/cdylib).
+    println!("cargo:rustc-link-search=native={}", bpath.clone() + "/build/libs/eurorack");
+    println!("cargo:rustc-link-lib=static:+whole-archive=eurorack");
     // Spike patch: surge-common-binary (cmrc embedded resources) is referenced by
     // SurgeStorage regardless of build mode, so it must always be linked.
     println!("cargo:rustc-link-lib=static=surge-common-binary");
