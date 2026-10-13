@@ -99,41 +99,53 @@ fn sm_update_rec(repo: &git2::Repository) {
     }
 }
 
+fn checkout_pinned(repo: &git2::Repository) {
+    let oid = git2::Oid::from_str(SURGE_XT_COMMIT).expect("malformed pinned surge commit");
+    let obj = repo
+        .find_object(oid, None)
+        .expect("pinned surge commit missing from clone");
+    let mut co = CheckoutBuilder::new();
+    co.force();
+    repo.checkout_tree(&obj, Some(&mut co)).expect("failed to check out pinned surge");
+    repo.set_head_detached(oid).expect("failed to detach HEAD at pinned surge");
+    realprint!("surge pinned at {}.", &SURGE_XT_COMMIT[..12]);
+}
+
 fn pull_surge_from_clouds(dst: impl AsRef<Path>) {
     let dst = dst.as_ref();
-    if dst.exists() {
-        if git2::Repository::open(dst).unwrap().head().is_ok() {
-            realprint!("surge is down from the clouds. no action.");
-            return;
-        } else {
-            realprint!("surge is down from the clouds, but it came down mangled.");
+    if dst.exists() && git2::Repository::open(dst).map(|r| r.head().is_ok()).unwrap_or(false) {
+        realprint!("surge already vendored; re-asserting pinned revision + submodules.");
+    } else {
+        if dst.exists() {
+            realprint!("surge came down mangled. removing it.");
             assert_eq!(dst.to_str().unwrap(), "sbmod/surge/");  // just as safety.
             std::fs::remove_dir_all(dst).unwrap();
-            realprint!("removed the mangled surge. poor thing.");
         }
+
+        realprint!("pulling surge from the clouds (full history, so the pin is reachable).");
+        let mut counter = 0;
+        let mut callbacks = git2::RemoteCallbacks::new();
+        let mut checkout = CheckoutBuilder::new();
+        callbacks.transfer_progress(|p| pct_callback(&mut counter, p));
+        checkout.progress(|p, c, t| chk_callback(p, c, t));
+
+        // No depth(1): a shallow clone cannot check out the pinned commit nor
+        // fetch submodule SHAs pinned by it.
+        let mut fopts = git2::FetchOptions::new();
+        fopts.remote_callbacks(callbacks).prune(git2::FetchPrune::On);
+
+        fakeprint!("...");
+        git2::build::RepoBuilder::new()
+            .fetch_options(fopts)
+            .with_checkout(checkout)
+            .clone("https://github.com/surge-synthesizer/surge", dst)
+            .expect("the sun came up, so we were unable to pull surge from the clouds.");
+        fakeprint!("\x1B[AOK.                                                           ");
     }
 
-    realprint!("surge is in the sky. pulling surge from the clouds.");
-    let mut counter = 0;
-    let mut callbacks = git2::RemoteCallbacks::new();
-    let mut checkout = CheckoutBuilder::new();
-    callbacks.transfer_progress(|p| pct_callback(&mut counter, p));
-    checkout.progress(|p, c, t| chk_callback(p, c, t));
-
-    let mut fopts = git2::FetchOptions::new();
-    fopts.depth(1).remote_callbacks(callbacks).prune(git2::FetchPrune::On);
-
-    fakeprint!("...");
-    git2::build::RepoBuilder::new()
-        .fetch_options(fopts)
-        .with_checkout(checkout)
-        .clone("https://github.com/surge-synthesizer/surge", dst)
-        .expect("the sun came up, so we were unable to pull surge from the clouds.");
-    fakeprint!("\x1B[AOK.                                                           ");
-
-    // sorry for writing this one. m(._.)m
-    realprint!("the pulled surge is stable, but we need to fill its innards with joy.");
     let repo = git2::Repository::open(dst).expect("somehow couldn't crack open the surge.");
+    checkout_pinned(&repo);
+    realprint!("filling surge's innards with joy (pinned submodules).");
     sm_update_rec(&repo);
     realprint!("surge is ready.");
 }
@@ -150,6 +162,7 @@ fn build_surge_from_ground(src: impl AsRef<Path>) -> PathBuf {
         .build()
 }
 
+const SURGE_XT_COMMIT: &str = "45568c7d60be52aa2a4f27dd7b7a074f56bd00ba";
 const SDST_OT: &str = "sbmod/surge/";   // i kind of forgot what this acronym stood for.
 const SDST_IT: &str = "../../../";      // the surge in surge/src/surge-rs/surge-rs.
 
@@ -229,7 +242,16 @@ fn main() {
         ("libs/sst/sst-plugininfra/libs/strnatcmp", "strnatcmp"),
         ("libs/sst/sst-plugininfra/libs/tinyxml",   "tinyxml"),
     );
-    if var("CARGO_FEATURE_IN_SURGE_TREE").is_ok() { println!("cargo:rustc-link-lib=static=surge-common-binary"); }
+    // Spike patch: surge-common-binary (cmrc embedded resources) is referenced by
+    // SurgeStorage regardless of build mode, so it must always be linked.
+    println!("cargo:rustc-link-lib=static=surge-common-binary");
+    // Spike patch: macOS Surge path code (sst-plugininfra paths_macos.mm) needs the
+    // Objective-C runtime + Foundation; upstream link flags omit these.
+    if cfg!(target_os = "macos") {
+        println!("cargo:rustc-link-lib=framework=Foundation");
+        println!("cargo:rustc-link-lib=framework=AppKit");
+        println!("cargo:rustc-link-lib=objc");
+    }
 
     realprint!("peeking into (and exporting) surge's build flags.");
     let comcom = bpath.clone() + "/build/compile_commands.json";    // "compile commands". comcom.
