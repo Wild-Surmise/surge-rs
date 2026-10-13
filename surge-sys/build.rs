@@ -69,34 +69,18 @@ fn chk_callback(p: Option<&Path>, c: usize, t: usize) {
     );
 }
 
-fn sm_update_rec(repo: &git2::Repository) {
-    let sms = repo.submodules().expect("the surge's insides are devoid of instructions...");
-    for mut sm in sms {
-        let name = sm.name().unwrap_or("???");
-        realprint!("injecting \"{}\" into the surge.", name);
-
-        sm.init(false).expect("joy initialization failed.");
-        let mut counter = 0;
-        let mut uopts = git2::SubmoduleUpdateOptions::new();
-        let mut fopts = git2::FetchOptions::new();
-        let mut callbacks = git2::RemoteCallbacks::new();
-        let mut checkout = CheckoutBuilder::new();
-        callbacks.transfer_progress(|p| pct_callback(&mut counter, p));
-        checkout.progress(|p, c, t| chk_callback(p, c, t));
-        fopts.remote_callbacks(callbacks).prune(git2::FetchPrune::On);
-        uopts.fetch(fopts).checkout(checkout);
-
-        fakeprint!("...");
-        sm.update(true, Some(&mut uopts)).expect("failed to introduce into the surge.");
-        fakeprint!("\x1B[AOK.                                                           ");
-
-        if let Ok(repo) = sm.open() {
-            if repo.submodules().unwrap().len() > 0 {
-                fakeprint!("found extra goodies to insert.");
-                sm_update_rec(&repo);
-            }
-        }
-    }
+fn sync_submodules(dst: &Path) {
+    // git2's submodule update fails to fetch commits not reachable from a
+    // submodule's default branch (e.g. sst-effects @ 5f2bd1a8), which breaks a
+    // clean checkout. The git CLI fetches the exact pinned SHAs.
+    realprint!("syncing surge submodules via git CLI.");
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dst)
+        .args(["submodule", "update", "--init", "--recursive"])
+        .status()
+        .expect("failed to run git submodule update");
+    assert!(status.success(), "git submodule update failed");
 }
 
 fn checkout_pinned(repo: &git2::Repository) {
@@ -146,7 +130,7 @@ fn pull_surge_from_clouds(dst: impl AsRef<Path>) {
     let repo = git2::Repository::open(dst).expect("somehow couldn't crack open the surge.");
     checkout_pinned(&repo);
     realprint!("filling surge's innards with joy (pinned submodules).");
-    sm_update_rec(&repo);
+    sync_submodules(dst);
     realprint!("surge is ready.");
 }
 

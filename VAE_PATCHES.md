@@ -14,7 +14,10 @@ check out a pinned revision/submodule SHAs. This fork:
 
 - clones full history (no `depth(1)`);
 - checks out a pinned commit and detaches HEAD;
-- then syncs submodules recursively at the commits that revision records.
+- syncs submodules via the **git CLI** (`git submodule update --init
+  --recursive`). Upstream used `git2`, which cannot fetch submodule commits
+  that aren't reachable from the submodule's default branch (e.g.
+  `libs/sst/sst-effects` @ `5f2bd1a8`), so a clean checkout fails.
 
 Pinned commit: `45568c7d60be52aa2a4f27dd7b7a074f56bd00ba`
 
