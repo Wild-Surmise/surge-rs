@@ -33,6 +33,29 @@ To bump, edit `SURGE_XT_COMMIT` in `surge-sys/build.rs` and rebuild.
    ObjC runtime and Foundation/AppKit, which upstream never links
    (`_OBJC_CLASS_$_NSFileManager`, `_objc_msgSend`). Now linked on macOS.
 
+## Parameter / state bridge patches (Phase 2F)
+
+Built so the plugin can expose Surge's **whole** parameter surface and round-trip
+its full patch state.
+
+1. **`getParameterMetaFull` (`surge-sys/cpp/plumber.{h,cpp}` + `src/hell_ffi.rs`).**
+   Surge's own `SurgeSynthesizer::getParameterMeta` deliberately reports
+   `fmin`/`fmax` as `0.0`/`1.0` (the real fields are commented out in
+   `SurgeSynthesizer.cpp`), which cannot drive discrete host params. This
+   fork-owned plumber function reads the real `Parameter::val_min`/`val_max`
+   (per `valtype`), the normalized default, and adds the stable-key fields
+   `ctrlgroup`, `ctrlgroup_entry`, `scene`. The Rust glue exposes it as
+   `SurgeSynthesizer::get_parameter_meta(&mut SurgeId) -> ParameterMeta`.
+2. **`SurgeSynthesizer::save_patch()` (Rust glue).** Wraps the bindgen-exposed
+   `SurgeSynthesizer::saveRaw(void**)` (defined in
+   `src/common/SurgeSynthesizerIO.cpp`) into `-> Vec<u8>`. The bytes are copied
+   out; Surge owns the allocation (freed on the next save / on drop), so callers
+   must not free. This is the counterpart of the existing `load_raw` and carries
+   the full patch stream (mod routings, wavetables, step-seq, both scenes).
+
+No Surge XT source is modified: `surge-sys/sbmod/surge` is cloned by `build.rs`
+and is not part of this repo.
+
 ## Usage
 
 Pin by revision (cargo does not track branches for reproducibility):

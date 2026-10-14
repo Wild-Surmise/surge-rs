@@ -11,6 +11,19 @@
 
 typedef SurgeSynthesizer::ID ID;
 
+// VAE: richer echo of Surge's own `parametermeta`. Surge's
+// `getParameterMeta` deliberately reports fmin/fmax as 0/1 (see
+// SurgeSynthesizer.cpp), which is useless for building a faithful host
+// parameter surface. This carries the *real* engine range plus the
+// (ctrlgroup, ctrlgroup_entry, scene) triples needed for a stable key.
+struct SurgeParamMeta
+{
+	float fmin, fmax, fdefault;
+	int valtype, ctrlgroup, ctrlgroup_entry, scene;
+	unsigned int flags;
+	bool hide, expert, meta;
+};
+
 extern "C" {	// linkage?
 	// note 1.
 EXP	int getNumInputs(SurgeSynthesizer* surge);
@@ -29,6 +42,7 @@ EXP	void getParameterName			(CSUR, IAT1);
 EXP	void getParameterNameExtendedByFXGroup	(CSUR, IAT1);
 EXP	void getParameterAccessibleName		(CSUR, IAT1);
 EXP	void getParameterMeta			(CSUR, IDPO, parametermeta* pm);
+EXP	void getParameterMetaFull		(CSUR, IDPO, SurgeParamMeta* out);
 EXP	float getParameter01			(CSUR, IDPO);
 EXP	bool setParameter01			(NSUR, IDPO, float value, bool external = false, bool force_integer = false);
 EXP	float normalizedToValue			(CSUR, IDPO, float val);

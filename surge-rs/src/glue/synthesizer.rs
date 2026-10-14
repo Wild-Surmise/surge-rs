@@ -31,6 +31,32 @@ impl SurgeId {
     }
 }
 
+/// Engine-side parameter metadata, read through the fork's
+/// `getParameterMetaFull`. `min`/`max` are in the parameter's plain units and
+/// `default` is normalized 0..1. `valtype` follows Surge's `valtypes`
+/// (`0 = int`, `1 = bool`, `2 = float`).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ParameterMeta {
+    pub min: f32,
+    pub max: f32,
+    pub default: f32,
+    pub valtype: i32,
+    pub ctrlgroup: i32,
+    pub ctrlgroup_entry: i32,
+    pub scene: i32,
+    pub flags: u32,
+    pub hide: bool,
+    pub expert: bool,
+    pub meta: bool,
+}
+
+impl ParameterMeta {
+    /// `true` for Surge `vt_int` / `vt_bool` parameters (never ramped).
+    pub fn is_discrete(&self) -> bool {
+        self.valtype != 2
+    }
+}
+
 pub struct SurgeSynthesizer {
     ptr: *mut hell_ffi::SurgeSynthesizer,
 }
@@ -208,26 +234,51 @@ impl SurgeSynthesizer {
         stringer!(&self, &mut index, getParameterAccessibleName)
     }
 
-    /*pub fn get_parameter_meta(&self, index: &mut SurgeId) -> ParameterMeta {
-        let mut buffer = ParameterMeta::default();
-
+    /// Engine-side metadata for `index`, through the fork's
+    /// `getParameterMetaFull`. `min`/`max` are in the parameter's plain units;
+    /// `default` is normalized 0..1.
+    pub fn get_parameter_meta(&self, index: &mut SurgeId) -> ParameterMeta {
+        let mut raw = hell_ffi::SurgeParamMeta::default();
         unsafe {
-            hell_ffi::getParameterMeta(self.ptr, &mut index.0,
-                &mut buffer
-                as *mut ParameterMeta
-                as *mut _
-            );
-            buffer
+            hell_ffi::getParameterMetaFull(self.ptr, &mut index.0, &mut raw);
         }
+        ParameterMeta {
+            min: raw.fmin,
+            max: raw.fmax,
+            default: raw.fdefault,
+            valtype: raw.valtype,
+            ctrlgroup: raw.ctrlgroup,
+            ctrlgroup_entry: raw.ctrlgroup_entry,
+            scene: raw.scene,
+            flags: raw.flags,
+            hide: raw.hide,
+            expert: raw.expert,
+            meta: raw.meta,
+        }
+    }
 
+    /// Serialize the current state as Surge's raw patch stream — the
+    /// counterpart of [`Self::load_patch`]. This includes the DAW-only extra
+    /// state (MPE enable, OSC-check flag, ...) via `populateDawExtraState`,
+    /// matching Surge's own `getStateInformation`. The bytes are copied out;
+    /// Surge owns the underlying allocation and frees it on the next save or on
+    /// drop, so callers must not free.
+    pub fn save_patch(&mut self) -> Vec<u8> {
+        unsafe { (*self.ptr).populateDawExtraState() };
+        let mut data: *mut std::ffi::c_void = std::ptr::null_mut();
+        let size = unsafe { (*self.ptr).saveRaw(&mut data) } as usize;
+        if data.is_null() || size == 0 {
+            return Vec::new();
+        }
+        unsafe { std::slice::from_raw_parts(data as *const u8, size).to_vec() }
+    }
 
-
-        //todo!();
-        // TODO: do what you did for the stringer set and return a PMETA.
-        //unsafe { hell_ffi::getParameterMeta(self.ptr, &mut index.0, parametermeta) }
-    }*/
-    pub fn get_parameter_meta(&self, index: &mut SurgeId) {
-        todo!();
+    /// Restore a patch stream produced by [`Self::save_patch`], including the
+    /// DAW-only extra state.
+    pub fn load_patch(&mut self, data: &[u8]) {
+        let mut buf = data.to_vec();
+        self.load_raw(&mut buf, Some(true));
+        unsafe { (*self.ptr).loadFromDawExtraState() };
     }
 
     pub fn get_parameter01(&self, index: &mut SurgeId) -> f32 {
