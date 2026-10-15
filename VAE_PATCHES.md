@@ -48,10 +48,13 @@ its full patch state.
    `SurgeSynthesizer::get_parameter_meta(&mut SurgeId) -> ParameterMeta`.
 2. **`SurgeSynthesizer::save_patch()` (Rust glue).** Wraps the bindgen-exposed
    `SurgeSynthesizer::saveRaw(void**)` (defined in
-   `src/common/SurgeSynthesizerIO.cpp`) into `-> Vec<u8>`. The bytes are copied
-   out; Surge owns the allocation (freed on the next save / on drop), so callers
-   must not free. This is the counterpart of the existing `load_raw` and carries
-   the full patch stream (mod routings, wavetables, step-seq, both scenes).
+   `src/common/SurgeSynthesizerIO.cpp`) into `-> Vec<u8>`. Takes `&self` so it
+   fits Truce's `PluginLogic::save_state(&DspState)` (the host serializes state
+   with the audio thread stopped; `saveRaw` only touches Surge's patch buffer).
+   The bytes are copied out; Surge owns the allocation (freed on the next save /
+   on drop), so callers must not free. This is the counterpart of the existing
+   `load_raw` and carries the full patch stream (mod routings, wavetables,
+   step-seq, both scenes).
 
 No Surge XT source is modified: `surge-sys/sbmod/surge` is cloned by `build.rs`
 and is not part of this repo.

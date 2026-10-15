@@ -263,7 +263,11 @@ impl SurgeSynthesizer {
     /// matching Surge's own `getStateInformation`. The bytes are copied out;
     /// Surge owns the underlying allocation and frees it on the next save or on
     /// drop, so callers must not free.
-    pub fn save_patch(&mut self) -> Vec<u8> {
+    ///
+    /// Takes `&self`: the host serializes state with the audio thread stopped,
+    /// and `saveRaw` only touches Surge's internal patch buffer. This matches
+    /// Truce's `PluginLogic::save_state(&DspState)` shape.
+    pub fn save_patch(&self) -> Vec<u8> {
         unsafe { (*self.ptr).populateDawExtraState() };
         let mut data: *mut std::ffi::c_void = std::ptr::null_mut();
         let size = unsafe { (*self.ptr).saveRaw(&mut data) } as usize;
